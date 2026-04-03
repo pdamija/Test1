@@ -105,6 +105,24 @@ details[data-testid="stExpander"] summary {
 }
 details[data-testid="stExpander"] summary:hover {
     background: #daecd4 !important;
+    color: #111111 !important;
+}
+details[data-testid="stExpander"] summary:hover * {
+    color: #111111 !important;
+    background: transparent !important;
+}
+details[data-testid="stExpander"] summary:focus {
+    background: #daecd4 !important;
+    color: #111111 !important;
+    outline: none !important;
+}
+details[data-testid="stExpander"] summary:focus-visible {
+    background: #daecd4 !important;
+    color: #111111 !important;
+}
+details[data-testid="stExpander"] summary::marker,
+details[data-testid="stExpander"] summary::-webkit-details-marker {
+    color: #111111 !important;
 }
 details[data-testid="stExpander"] summary * {
     color: #111111 !important;
@@ -233,6 +251,25 @@ details[data-testid="stExpander"] > div {
     border-radius: var(--radius) !important;
     padding: 1rem !important;
     box-shadow: var(--shadow) !important;
+}
+
+/* ── Expander hover — prevent black background ── */
+details[data-testid="stExpander"] summary > * {
+    color: #111111 !important;
+}
+details[data-testid="stExpander"] summary:hover,
+details[data-testid="stExpander"] summary:hover > div,
+details[data-testid="stExpander"] summary:hover > div > *,
+details[data-testid="stExpander"] summary:hover svg,
+details[data-testid="stExpander"] summary:hover p,
+details[data-testid="stExpander"] summary:hover span {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #111111 !important;
+}
+details[data-testid="stExpander"]:hover > summary {
+    background: #daecd4 !important;
+    color: #111111 !important;
 }
 
 /* ── Dividers ── */

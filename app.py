@@ -96,15 +96,28 @@ details[data-testid="stExpander"] summary {
     font-family: 'DM Sans', sans-serif !important;
     font-weight: 600 !important;
     font-size: 0.9rem !important;
-    color: var(--forest) !important;
+    color: #111111 !important;
     letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
     padding: 0.9rem 1.1rem !important;
-    background: var(--sage-faint) !important;
-    border-bottom: 1px solid var(--sage-pale) !important;
+    background: #e8f2e4 !important;
+    border-bottom: 1px solid #c8dfc0 !important;
 }
 details[data-testid="stExpander"] summary:hover {
-    background: rgba(200,223,192,0.45) !important;
+    background: #daecd4 !important;
+}
+details[data-testid="stExpander"] summary * {
+    color: #111111 !important;
+}
+details[data-testid="stExpander"] summary p {
+    color: #111111 !important;
+}
+details[data-testid="stExpander"] > div {
+    background: #ffffff !important;
+    color: #111111 !important;
+}
+details[data-testid="stExpander"] > div * {
+    color: #111111 !important;
 }
 details[data-testid="stExpander"] > div {
     padding: 1rem 1.25rem 1.25rem !important;

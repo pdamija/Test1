@@ -24,8 +24,8 @@ st.markdown("""
     --sage-faint:  #e8f2e4;
     --forest:      #2d5016;
     --forest-deep: #1b3209;
-    --text:        #1e2e1a;
-    --text-muted:  #5a6e55;
+    --text:        #0a0a0a;
+    --text-muted:  #1a1a1a;
     --cream:       #f4f1eb;
     --white:       #ffffff;
     --amber:       #b87828;
@@ -79,7 +79,7 @@ h3, h4, .stMarkdown h3, .stMarkdown h4 {
 }
 p, .stMarkdown p {
     font-family: 'DM Sans', sans-serif !important;
-    color: var(--text-muted) !important;
+    color: #111111 !important;
     line-height: 1.7 !important;
 }
 
@@ -143,7 +143,7 @@ details[data-testid="stExpander"] > div {
     font-size: 0.88rem !important;
     letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
-    color: var(--text-muted) !important;
+    color: #111111 !important;
     padding: 0.65rem 1.4rem !important;
     border-bottom: 2px solid transparent !important;
     margin-bottom: -2px !important;
@@ -169,7 +169,7 @@ details[data-testid="stExpander"] > div {
 [data-testid="stMetricLabel"] {
     font-family: 'DM Sans', sans-serif !important;
     font-weight: 500 !important;
-    color: var(--text-muted) !important;
+    color: #111111 !important;
     font-size: 0.72rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.09em !important;
@@ -231,7 +231,7 @@ hr {
 
 /* ── Caption ── */
 .stCaption, [data-testid="stCaptionContainer"] {
-    color: var(--text-muted) !important;
+    color: #333333 !important;
     font-size: 0.76rem !important;
 }
 
@@ -247,7 +247,7 @@ hr {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.10em;
-    color: var(--text-muted);
+    color: #111111;
     margin-bottom: 0.4rem;
     margin-top: 0.5rem;
 }
@@ -375,7 +375,7 @@ st.markdown("""
   <span style="font-family:'DM Serif Display',serif; font-size:2.6rem; color:#2d5016;
                letter-spacing:-0.02em; line-height:1;">ESGenie</span>
 </div>
-<p style="font-family:'DM Sans',sans-serif; color:#5a6e55; font-size:1rem;
+<p style="font-family:'DM Sans',sans-serif; color:#111111; font-size:1rem;
           margin-top:0.15rem; margin-bottom:1.75rem; font-style:italic;">
   Sustainable Portfolio Advisor
 </p>
@@ -386,7 +386,7 @@ st.markdown("""
 # ══════════════════════════════════════════════════════════════════════
 
 st.markdown("#### Configure your portfolio parameters")
-st.markdown("<p style='margin-top:-0.5rem; margin-bottom:1.25rem;'>Expand each section below to enter your inputs, then run the optimisation.</p>", unsafe_allow_html=True)
+st.markdown("<p style='margin-top:-0.5rem; margin-bottom:1.25rem; color:#111111;'>Expand each section below to enter your inputs, then run the optimisation.</p>", unsafe_allow_html=True)
 
 sector_options = ["Technology", "Healthcare", "Financial Services",
                   "Consumer Goods", "Energy", "Tobacco",
@@ -550,7 +550,7 @@ if not run:
       <p style="font-family:'DM Serif Display',serif; font-size:1.2rem; color:#2d5016; margin:0 0 0.4rem; font-style:italic;">
         How to use ESGenie
       </p>
-      <p style="color:#5a6e55; font-size:0.92rem; margin:0; line-height:1.7;">
+      <p style="color:#111111; font-size:0.92rem; margin:0; line-height:1.7;">
         Complete the five input sections above, then click
         <strong style="color:#2d5016;">Run Optimisation</strong> to generate your
         personalised sustainable portfolio recommendation. Results are presented

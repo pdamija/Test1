@@ -268,13 +268,10 @@ def portfolio_esg(x1, x2, esg1, esg2):
         if abs(total_risky) < 1e-9:
             return 0.0
         return (x1 * esg1 + x2 * esg2) / total_risky
-    # vectorised path
-    with np.errstate(invalid="ignore", divide="ignore"):
-        result = np.where(
-            np.abs(total_risky) < 1e-9,
-            0.0,
-            (x1 * esg1 + x2 * esg2) / total_risky,
-        )
+    # vectorised path — avoid NaN by using a safe denominator
+    numer      = x1 * esg1 + x2 * esg2
+    safe_denom = np.where(np.abs(total_risky) < 1e-9, 1.0, total_risky)
+    result     = np.where(np.abs(total_risky) < 1e-9, 0.0, numer / safe_denom)
     return result
 
 def portfolio_ret_excess(x1, x2, r1, r2, r_free):
@@ -337,10 +334,9 @@ def run_optimisation(r1, r2, sd1, sd2, rho, r_free,
     sd_    = np.sqrt(np.maximum(var, 0.0))
 
     total_risky = X1 + X2
-    with np.errstate(invalid="ignore", divide="ignore"):
-        esg_ = np.where(np.abs(total_risky) < 1e-9,
-                        0.0,
-                        (X1 * esg1 + X2 * esg2) / total_risky)
+    esg_numer = X1 * esg1 + X2 * esg2
+    safe_denom = np.where(np.abs(total_risky) < 1e-9, 1.0, total_risky)
+    esg_ = np.where(np.abs(total_risky) < 1e-9, 0.0, esg_numer / safe_denom)
 
     utils = excess - (gamma / 2) * var + theta * (esg_ / 100)
 
@@ -390,27 +386,51 @@ def run_optimisation(r1, r2, sd1, sd2, rho, r_free,
     ret_tan, sd_tan, esg_tan, sr_tan = _stats(x1_tan, x2_tan)
     ret_mv,  sd_mv,  esg_mv,  sr_mv  = _stats(x1_mv,  x2_mv)
 
-    # ── 1-D frontier slice: fix ratio x2/x1 at optimal, vary scale ───
-    # For chart purposes produce a curve by scaling the optimal direction
-    scales = np.linspace(0.0, 2.0, 400)
-    if abs(x1_opt) + abs(x2_opt) > 1e-9:
-        frontier_x1 = scales * x1_opt
-        frontier_x2 = scales * x2_opt
-    else:
-        frontier_x1 = scales
-        frontier_x2 = np.zeros_like(scales)
+    # ── Proper efficient frontier: for each target return, find min variance ──
+    # Use the full 2-D grid already computed above and extract the lower envelope.
+    # For each distinct (risk, return) point, keep the one with lowest variance
+    # at each return level — this traces the true parabolic frontier.
+    all_rets = (X1 * r1 + X2 * r2 + (1 - X1 - X2) * r_free).ravel()
+    all_vars = var.ravel()
+    all_x1   = X1.ravel()
+    all_x2   = X2.ravel()
 
-    f_ret  = frontier_x1 * r1  + frontier_x2 * r2  + (1 - frontier_x1 - frontier_x2) * r_free
+    # Bin returns into 200 buckets and pick min-variance portfolio per bucket
+    n_bins = 200
+    ret_min_v, ret_max_v = all_rets.min(), all_rets.max()
+    bin_edges = np.linspace(ret_min_v, ret_max_v, n_bins + 1)
+    frontier_x1_list, frontier_x2_list = [], []
+    for i in range(n_bins):
+        mask = (all_rets >= bin_edges[i]) & (all_rets < bin_edges[i + 1])
+        if mask.sum() == 0:
+            continue
+        best = np.argmin(all_vars[mask])
+        idx  = np.where(mask)[0][best]
+        frontier_x1_list.append(float(all_x1[idx]))
+        frontier_x2_list.append(float(all_x2[idx]))
+
+    frontier_x1 = np.array(frontier_x1_list)
+    frontier_x2 = np.array(frontier_x2_list)
+
+    f_ret  = frontier_x1 * r1 + frontier_x2 * r2 + (1 - frontier_x1 - frontier_x2) * r_free
     f_var  = (frontier_x1**2 * sd1**2 + frontier_x2**2 * sd2**2
               + 2 * rho * frontier_x1 * frontier_x2 * sd1 * sd2)
     f_sd   = np.sqrt(np.maximum(f_var, 0.0))
     f_total = frontier_x1 + frontier_x2
-    with np.errstate(invalid="ignore", divide="ignore"):
-        f_esg  = np.where(np.abs(f_total) < 1e-9,
-                          0.0,
-                          (frontier_x1 * esg1 + frontier_x2 * esg2) / f_total)
+    f_esg_numer  = frontier_x1 * esg1 + frontier_x2 * esg2
+    f_safe_denom = np.where(np.abs(f_total) < 1e-9, 1.0, f_total)
+    f_esg   = np.where(np.abs(f_total) < 1e-9, 0.0, f_esg_numer / f_safe_denom)
     f_utils = (frontier_x1 * (r1 - r_free) + frontier_x2 * (r2 - r_free)
                - (gamma / 2) * f_var + theta * (f_esg / 100))
+
+    # Sort by risk so the plotted curve reads left-to-right
+    sort_idx    = np.argsort(f_sd)
+    frontier_x1 = frontier_x1[sort_idx]
+    frontier_x2 = frontier_x2[sort_idx]
+    f_ret       = f_ret[sort_idx]
+    f_sd        = f_sd[sort_idx]
+    f_esg       = f_esg[sort_idx]
+    f_utils     = f_utils[sort_idx]
 
     return dict(
         # optimal
@@ -1048,7 +1068,8 @@ with tab2:
     ret_plot   = res["frontier_ret"]
     esg_plot   = res["frontier_esg"]
     util_plot  = res["frontier_utils"]
-    scales     = np.linspace(0.0, 2.0, len(risk_plot))
+    fx1_plot   = res["frontier_x1"]
+    fx2_plot   = res["frontier_x2"]
 
     theme_text = "#1f3d2b" if not dark_mode else "#e5e7eb"
     chart_bg   = "#ffffff" if not dark_mode else "#0f1720"
@@ -1056,8 +1077,8 @@ with tab2:
     chart_grid = "#e8f3ec" if not dark_mode else "#2a3441"
 
     # Plotly frontier
-    st.markdown('<div class="section-header">📈 ESG-Efficient Frontier (Optimal Direction)</div>', unsafe_allow_html=True)
-    st.markdown('<div class="chart-info">The curve traces portfolios along the optimal risky-asset direction, varying the total risky scale from 0% to 200%. Each point is coloured by its portfolio ESG score. The ✨ star marks your recommended portfolio. The risk-free rate sits at the origin (σ = 0).</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">📈 ESG-Efficient Frontier</div>', unsafe_allow_html=True)
+    st.markdown('<div class="chart-info">Each point on the curve is the minimum-variance portfolio for a given return level, tracing the true parabolic frontier. Points are coloured by portfolio ESG score (green = high ESG, red = low ESG). The ✨ star marks your recommended portfolio. Hover over any point for details.</div>', unsafe_allow_html=True)
 
     fig_f = go.Figure()
     fig_f.add_trace(go.Scatter(
@@ -1066,9 +1087,9 @@ with tab2:
                     size=5, opacity=0.85,
                     colorbar=dict(title=dict(text="ESG Score", font=dict(color=theme_text)),
                                   thickness=14, tickfont=dict(color=theme_text))),
-        text=[f"{name1}: {s*x1_opt*100:.1f}%  {name2}: {s*x2_opt*100:.1f}%<br>"
+        text=[f"{name1}: {a*100:.1f}%  {name2}: {b*100:.1f}%  RF: {(1-a-b)*100:.1f}%<br>"
               f"Return: {r*100:.2f}%  Risk: {sk*100:.2f}%  ESG: {e:.1f}"
-              for s, r, sk, e in zip(scales, ret_plot, risk_plot, esg_plot)],
+              for a, b, r, sk, e in zip(fx1_plot, fx2_plot, ret_plot, risk_plot, esg_plot)],
         hoverinfo="text", showlegend=False,
     ))
     # Capital Market Line from risk-free through tangency
@@ -1112,9 +1133,9 @@ with tab2:
     )
     st.plotly_chart(fig_f, use_container_width=True)
 
-    # Utility vs scale
-    st.markdown('<div class="section-header">📉 Utility Function vs Risky Exposure Scale</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="chart-info">Shows how utility changes as the total risky allocation scales from 0% to 200% along the optimal {name1}/{name2} direction. The ✨ star marks the maximum — your recommended risky scale. The remainder always sits in the risk-free asset.</div>', unsafe_allow_html=True)
+    # Utility vs weight in Asset 1 (along the frontier)
+    st.markdown('<div class="section-header">📉 Utility Function vs Portfolio Risk</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="chart-info">Shows how utility varies across frontier portfolios, plotted against portfolio risk (std dev). The ✨ star marks your recommended portfolio — the one that maximises utility given your risk aversion (γ={gamma}) and ESG preference (θ={theta}).</div>', unsafe_allow_html=True)
 
     if np.all(util_plot == util_plot[0]):
         st.warning("Utility function is flat — check your inputs.")
@@ -1126,15 +1147,15 @@ with tab2:
     ax.set_facecolor(chart_plot)
     for spine in ax.spines.values():
         spine.set_edgecolor("#c8dfc0"); spine.set_linewidth(0.8)
-    ax.plot(scales * 100, util_plot, color="#4a7c59", linewidth=2.5, label="Utility U(scale)")
-    ax.fill_between(scales * 100, util_plot, alpha=0.07, color="#4a7c59")
-    ax.axvline(x=scales[opt_scale_idx] * 100, color="#2d5016", linestyle="--", linewidth=1.5, alpha=0.8)
-    ax.scatter(scales[opt_scale_idx] * 100, util_plot[opt_scale_idx],
+    ax.plot(risk_plot * 100, util_plot, color="#4a7c59", linewidth=2.5, label="Utility U(w)")
+    ax.fill_between(risk_plot * 100, util_plot, alpha=0.07, color="#4a7c59")
+    ax.axvline(x=risk_plot[opt_scale_idx] * 100, color="#2d5016", linestyle="--", linewidth=1.5, alpha=0.8)
+    ax.scatter(risk_plot[opt_scale_idx] * 100, util_plot[opt_scale_idx],
                marker="*", color="#2d5016", s=250, zorder=5,
-               label=f"✨ Optimal scale: {scales[opt_scale_idx]*100:.0f}%")
-    ax.set_xlabel("Risky Exposure Scale (% of wealth)", color=theme_text)
+               label=f"✨ Recommended: σ={risk_plot[opt_scale_idx]*100:.1f}%")
+    ax.set_xlabel("Portfolio Risk — Standard Deviation (%)", color=theme_text)
     ax.set_ylabel("Utility", color=theme_text)
-    ax.set_title("Utility Function vs Risky Exposure Scale", color=theme_text, fontweight="bold")
+    ax.set_title("Utility Function vs Portfolio Risk (Frontier)", color=theme_text, fontweight="bold")
     ax.tick_params(colors=theme_text)
     ax.legend(fontsize=9, labelcolor=theme_text, facecolor=chart_bg, edgecolor="#c8dfc0")
     ax.grid(True, alpha=0.25, color=chart_grid)

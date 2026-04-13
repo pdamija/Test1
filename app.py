@@ -401,65 +401,45 @@ def run_optimisation(r1, r2, r_free, sd1, sd2, rho,
     x1_mv, x2_mv = float(w_mv_norm[0]), float(w_mv_norm[1])
 
     # ── Build frontier data for chart ──
-    # For display, we trace the frontier by varying the ratio x1:(1-x1)
-    # at the OPTIMAL total risky scale, and also show the unconstrained locus
+    # Use the traditional risky frontier: w1 in [0,1], w2 = 1-w1, x_rf = 0.
+    # This is the standard mean-variance frontier that tangency and min-var
+    # markers sit on. The CML then connects the risk-free point to tangency.
+    # The recommended portfolio is plotted at its actual unconstrained (x1, x2).
     n = 500
-    w1_vals = np.linspace(0, 1, n)  # risky split ratio
+    w1_vals = np.linspace(0, 1, n)
 
-    # Optimal total risky position at each split (for each theta, gamma)
-    # For the chart we show the mean-variance frontier at the optimal scale
-    # We trace by fixing the ratio and optimising the scale
-    frontier_x1 = []
-    frontier_x2 = []
-    frontier_ret = []
-    frontier_sd  = []
-    frontier_esg = []
-    frontier_obj = []
-
-    for w1 in w1_vals:
-        w2 = 1.0 - w1
-        # Optimal scale s for this direction: maximise over s>=0
-        # obj(s) = s*(w1*(r1-rf)+w2*(r2-rf)) - (g/2)*s^2*(w1^2*s1^2+...) + theta*sbar
-        # sbar doesn't depend on s (it's w1*esg1+w2*esg2 when w1+w2=1)
-        # d/ds: (excess) - gamma*s*var = 0  =>  s* = excess / (gamma*var)
-        excess_dir = w1*(r1-r_free) + w2*(r2-r_free)
-        var_dir    = portfolio_var(w1, w2, sd1, sd2, rho)
-        sbar_dir   = w1*esg1 + w2*esg2  # constant in s (direction fixed, w1+w2=1)
-        # Analytical FOC: d/ds [s*excess - (g/2)*s²*var + theta*sbar] = 0
-        # => s* = excess / (gamma * var)   [sbar term is constant in s]
-        if var_dir > 1e-12 and excess_dir > 0:
-            s_opt = excess_dir / (gamma * var_dir)
-        else:
-            s_opt = 0.0
-        fx1 = w1 * s_opt
-        fx2 = w2 * s_opt
-        frontier_x1.append(fx1)
-        frontier_x2.append(fx2)
-        frontier_ret.append(portfolio_ret_2asset(fx1, fx2, r1, r2, r_free))
-        frontier_sd.append(portfolio_sd_2asset(fx1, fx2, sd1, sd2, rho))
-        frontier_esg.append(portfolio_esg_weighted(fx1, fx2, esg1, esg2))
-        frontier_obj.append(objective([fx1, fx2], r1, r2, r_free, sd1, sd2, rho,
-                                      gamma, theta, esg1, esg2))
-
-    frontier_x1  = np.array(frontier_x1)
-    frontier_x2  = np.array(frontier_x2)
-    frontier_ret = np.array(frontier_ret)
-    frontier_sd  = np.array(frontier_sd)
-    frontier_esg = np.array(frontier_esg)
-    frontier_obj = np.array(frontier_obj)
-
-    # Derived display values for the three key portfolios
-    def _metrics(x1, x2):
-        ret = portfolio_ret_2asset(x1, x2, r1, r2, r_free)
+    frontier_x1  = w1_vals
+    frontier_x2  = 1.0 - w1_vals
+    frontier_ret = np.array([w*r1 + (1-w)*r2 for w in w1_vals])
+    frontier_sd  = np.array([portfolio_sd_2asset(w, 1-w, sd1, sd2, rho) for w in w1_vals])
+    frontier_esg = np.array([portfolio_esg_weighted(w, 1-w, esg1, esg2) for w in w1_vals])
+    frontier_obj = np.array([objective([w, 1-w], r1, r2, r_free, sd1, sd2, rho,
+                                       gamma, theta, esg1, esg2) for w in w1_vals])
+    # Derived display values for the three key portfolios.
+    # Tangency and min-var sit ON the risky frontier (sum-to-1, x_rf=0),
+    # so their return is the pure risky return — matching the frontier curve.
+    # The recommended portfolio is at its actual unconstrained scale.
+    def _metrics_risky(x1, x2):
+        """For portfolios that sit on the risky frontier (x1+x2=1, x_rf=0)."""
+        ret = x1 * r1 + x2 * r2          # pure risky return, no rf contribution
         sd  = portfolio_sd_2asset(x1, x2, sd1, sd2, rho)
         esg = portfolio_esg_weighted(x1, x2, esg1, esg2)
         sr  = sharpe_ratio_2asset(x1, x2, r1, r2, r_free, sd1, sd2, rho)
+        x_rf = 0.0                        # by definition on the risky frontier
+        return ret, sd, esg, sr, x_rf
+
+    def _metrics_unconstrained(x1, x2):
+        """For the recommended portfolio at its actual unconstrained scale."""
+        ret  = portfolio_ret_2asset(x1, x2, r1, r2, r_free)
+        sd   = portfolio_sd_2asset(x1, x2, sd1, sd2, rho)
+        esg  = portfolio_esg_weighted(x1, x2, esg1, esg2)
+        sr   = sharpe_ratio_2asset(x1, x2, r1, r2, r_free, sd1, sd2, rho)
         x_rf = 1.0 - x1 - x2
         return ret, sd, esg, sr, x_rf
 
-    ret_opt, sd_opt, esg_opt, sr_opt, xrf_opt = _metrics(x1_opt, x2_opt)
-    ret_tan, sd_tan, esg_tan, sr_tan, xrf_tan = _metrics(x1_tan, x2_tan)
-    ret_mv,  sd_mv,  esg_mv,  sr_mv,  xrf_mv  = _metrics(x1_mv,  x2_mv)
+    ret_opt, sd_opt, esg_opt, sr_opt, xrf_opt = _metrics_unconstrained(x1_opt, x2_opt)
+    ret_tan, sd_tan, esg_tan, sr_tan, xrf_tan = _metrics_risky(x1_tan, x2_tan)
+    ret_mv,  sd_mv,  esg_mv,  sr_mv,  xrf_mv  = _metrics_risky(x1_mv,  x2_mv)
 
     obj_opt = objective([x1_opt, x2_opt], r1, r2, r_free, sd1, sd2, rho,
                         gamma, theta, esg1, esg2)
@@ -1098,7 +1078,7 @@ with tab2:
     chart_grid = "#e8f3ec" if not dark_mode else "#2a3441"
 
     st.markdown('<div class="section-header">📈 ESG-Efficient Frontier</div>', unsafe_allow_html=True)
-    st.markdown('<div class="chart-info">Each point is a portfolio at the optimal risky scale for a different asset-1 ratio, coloured by portfolio ESG score. The ✨ star marks the recommended unconstrained optimum. Hover for details.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="chart-info">Each point on the curve represents a different split between the two risky assets (weights summing to 100%), coloured by ESG score. The Capital Market Line connects the risk-free rate to the tangency portfolio. The recommended portfolio star sits at its actual unconstrained scale — typically below the frontier because some wealth is held in the risk-free asset. Hover over any point for details.</div>', unsafe_allow_html=True)
 
     fig_f = go.Figure()
     fig_f.add_trace(go.Scatter(
@@ -1112,9 +1092,10 @@ with tab2:
                                           frontier_ret, frontier_sd, frontier_esg)],
         hoverinfo="text", showlegend=False,
     ))
-    # CML from risk-free
+    # CML from risk-free through tangency, extending to cover full frontier
     if res["sd_tan"] > 0:
-        cml_x = np.linspace(0, max(frontier_sd) * 1.3, 100)
+        cml_max = max(frontier_sd.max(), res["sd_tan"]) * 1.15
+        cml_x = np.linspace(0, cml_max, 100)
         cml_s = (res["ret_tan"] - r_free) / res["sd_tan"]
         fig_f.add_trace(go.Scatter(
             x=cml_x * 100, y=(r_free + cml_s * cml_x) * 100,

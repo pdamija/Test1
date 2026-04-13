@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from scipy.optimize import minimize
 
 # ── Page config ───────────────────────────────────────────────────────
 st.set_page_config(
@@ -385,14 +386,19 @@ def run_optimisation(r1, r2, r_free, sd1, sd2, rho,
         tang_norm = np.array([0.5, 0.5])
     x1_tan, x2_tan = float(tang_norm[0]), float(tang_norm[1])
 
-    # ── Min-variance portfolio (sum-to-one) ──
-    def port_var_obj(w):
-        return portfolio_var(w[0], w[1], sd1, sd2, rho)
-    mv_res = minimize(port_var_obj, [0.5, 0.5],
-                      method='SLSQP',
-                      constraints={'type': 'eq', 'fun': lambda w: w[0] + w[1] - 1},
-                      bounds=[(0, 1), (0, 1)])
-    x1_mv, x2_mv = float(mv_res.x[0]), float(mv_res.x[1])
+    # ── Min-variance portfolio (analytical, sum-to-one among risky assets) ──
+    # w_mv = Σ⁻¹ · 1 / (1ᵀ · Σ⁻¹ · 1)  — standard closed-form result
+    # Clipped to [0, 1] for non-negativity then renormalised.
+    try:
+        ones     = np.ones(2)
+        inv_S    = np.linalg.inv(Sigma)
+        w_mv_raw = (inv_S @ ones) / (ones @ inv_S @ ones)
+        w_mv_raw = np.clip(w_mv_raw, 0.0, 1.0)
+        w_mv_sum = w_mv_raw.sum()
+        w_mv_norm = w_mv_raw / w_mv_sum if w_mv_sum > 1e-10 else np.array([0.5, 0.5])
+    except np.linalg.LinAlgError:
+        w_mv_norm = np.array([0.5, 0.5])
+    x1_mv, x2_mv = float(w_mv_norm[0]), float(w_mv_norm[1])
 
     # ── Build frontier data for chart ──
     # For display, we trace the frontier by varying the ratio x1:(1-x1)
@@ -418,17 +424,11 @@ def run_optimisation(r1, r2, r_free, sd1, sd2, rho,
         # d/ds: (excess) - gamma*s*var = 0  =>  s* = excess / (gamma*var)
         excess_dir = w1*(r1-r_free) + w2*(r2-r_free)
         var_dir    = portfolio_var(w1, w2, sd1, sd2, rho)
-        sbar_dir   = w1*esg1 + w2*esg2  # normalised since w1+w2=1
-        if var_dir > 1e-12 and excess_dir + theta*(sbar_dir/100.0)/var_dir*gamma > 0:
-            # Full FOC including ESG: too complex, just use 1D scipy
-            def neg_scale(s):
-                s = float(s[0])
-                if s < 0:
-                    return 1e12
-                return -(s*excess_dir - (gamma/2)*s**2*var_dir + theta*(sbar_dir/100.0))
-            sr = minimize(neg_scale, [0.5], method='L-BFGS-B', bounds=[(0, None)],
-                          options={'ftol':1e-12})
-            s_opt = max(float(sr.x[0]), 0.0)
+        sbar_dir   = w1*esg1 + w2*esg2  # constant in s (direction fixed, w1+w2=1)
+        # Analytical FOC: d/ds [s*excess - (g/2)*s²*var + theta*sbar] = 0
+        # => s* = excess / (gamma * var)   [sbar term is constant in s]
+        if var_dir > 1e-12 and excess_dir > 0:
+            s_opt = excess_dir / (gamma * var_dir)
         else:
             s_opt = 0.0
         fx1 = w1 * s_opt
@@ -462,8 +462,6 @@ def run_optimisation(r1, r2, r_free, sd1, sd2, rho,
     ret_mv,  sd_mv,  esg_mv,  sr_mv,  xrf_mv  = _metrics(x1_mv,  x2_mv)
 
     obj_opt = objective([x1_opt, x2_opt], r1, r2, r_free, sd1, sd2, rho,
-                        gamma, theta, esg1, esg2)
-    obj_tan = objective([x1_tan, x2_tan], r1, r2, r_free, sd1, sd2, rho,
                         gamma, theta, esg1, esg2)
 
     # ESG premium: compare Sharpe of optimal vs tangency

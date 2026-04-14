@@ -533,7 +533,7 @@ with st.expander("📖 How to use ESGenie — click to expand", expanded=False):
         </div>
       </div>
       <div class="utility-formula">
-        <strong>Objective function (Pedersen et al. 2021):</strong><br>
+        <strong>Objective function :</strong><br>
         max  x₁(r₁−rᶠ) + x₂(r₂−rᶠ)  −  (γ/2)·x′Σx  +  θ·s̄<br>
         where  s̄ = (x₁·ESG₁ + x₂·ESG₂) / (x₁ + x₂)<br><br>
         <span style="font-size:0.8rem;">

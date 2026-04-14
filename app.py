@@ -501,7 +501,7 @@ with st.expander("📖 How to use ESGenie — click to expand", expanded=False):
         ESGenie helps you build a two-asset investment portfolio that balances
         <strong>financial performance</strong> (return and risk) with
         <strong>ESG values</strong> (Environmental, Social, Governance). It finds the
-        allocation that maximises your personal utility — a score that rewards higher
+        allocation that maximises your personal utility, a score that rewards higher
         returns, penalises risk, and rewards ESG performance according to how strongly
         you care about sustainability. Surplus wealth is held in the risk-free asset.
       </p>

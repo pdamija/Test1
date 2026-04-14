@@ -278,7 +278,7 @@ def run_optimisation(r1, r2, r_free, sd1, sd2, rho,
     Returns weights as fractions of total wealth; x_rf = 1 − x1 − x2 is implicit.
 
     Frontier: uses TRADITIONAL risky frontier (w1 in [0,1], w2=1-w1, x_rf=0).
-    This is the correct approach, tangency and min-var markers sit ON this frontier.
+    This is the correct approach — tangency and min-var markers sit ON this frontier.
     The recommended portfolio is plotted at its actual unconstrained scale.
     """
     if excluded is None:
@@ -633,7 +633,7 @@ with st.expander("02  —  Risk Profile", expanded=False):
     st.caption(f"γ = {gamma}  ·  Objective: x′(μ−rf) − ({gamma}/2)·x′Σx + θ·s̄")
 
 with st.expander("03  —  ESG Preferences", expanded=False):
-    st.markdown('<div class="tip-box" style="margin-bottom:0.85rem;">θ controls how strongly sustainability influences your recommendation. A higher θ tilts the optimiser toward the higher-ESG asset. The ESG score s̄ is computed over risky positions only — the risk-free asset contributes no ESG score.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="tip-box" style="margin-bottom:0.85rem;">θ controls how strongly sustainability influences your recommendation. A higher θ tilts the optimiser toward the higher-ESG asset. The ESG score s̄ is computed over risky positions only, the risk-free asset contributes no ESG score.</div>', unsafe_allow_html=True)
     col_e, col_f = st.columns(2, gap="large")
     with col_e:
         st.markdown('<p class="section-label">ESG Weight in Utility (θ)</p>', unsafe_allow_html=True)
@@ -667,7 +667,7 @@ with st.expander("04  —  Asset ESG Scores", expanded=False):
         G2 = st.slider("Governance (G)",    0, 100, int(st.session_state.get("_G2", 40)), key="g2")
 
 with st.expander("05  —  Ethical Screening", expanded=False):
-    st.markdown('<div class="tip-box" style="margin-bottom:0.85rem;">ESGenie automatically detects assets in controversial sectors — Tobacco, Weapons & Defence, Gambling, and Fossil Fuels. You can exclude them entirely, apply a utility penalty, or proceed without restriction. The ESG threshold applies a soft penalty independent of θ.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="tip-box" style="margin-bottom:0.85rem;">ESGenie automatically detects assets in controversial sectors such as Tobacco, Weapons & Defence, Gambling, and Fossil Fuels. You can exclude them entirely, apply a utility penalty, or proceed without restriction. The ESG threshold applies a soft penalty independent of θ.</div>', unsafe_allow_html=True)
     excluded = {}
     for aname, sector in [(name1, sector1), (name2, sector2)]:
         if sector in SIN_SECTORS:

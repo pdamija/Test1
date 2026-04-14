@@ -278,7 +278,7 @@ def run_optimisation(r1, r2, r_free, sd1, sd2, rho,
     Returns weights as fractions of total wealth; x_rf = 1 − x1 − x2 is implicit.
 
     Frontier: uses TRADITIONAL risky frontier (w1 in [0,1], w2=1-w1, x_rf=0).
-    This is the correct approach — tangency and min-var markers sit ON this frontier.
+    This is the correct approach, tangency and min-var markers sit ON this frontier.
     The recommended portfolio is plotted at its actual unconstrained scale.
     """
     if excluded is None:
